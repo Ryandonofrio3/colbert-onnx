@@ -1,6 +1,6 @@
 # ColBERT ONNX Converter
 
-Convert ColBERT models to ONNX format for use with transformers.js. Validated with multiple models showing 2x speed improvements and 75% size reductions.
+Convert ColBERT models to ONNX format for use with transformers.js. 
 
 ## Quick Start
 
@@ -14,14 +14,6 @@ uv run convert --model-id mixedbread-ai/mxbai-edge-colbert-v0-17m --quantize
 # Validate the conversion
 uv run validate --model-id mixedbread-ai/mxbai-edge-colbert-v0-17m
 ```
-
-## Features
-
-- ✅ **Proven Results**: 2x faster inference, 75% smaller models
-- ✅ **Perfect Accuracy**: Full-precision ONNX matches PyTorch exactly
-- ✅ **Automatic Detection**: Detects ColBERT architecture automatically
-- ✅ **Quantization Support**: INT8 quantization with minimal accuracy loss
-- ✅ **Multiple Models Tested**: Works with mixedbread, lightonai, and more
 
 ## Validation Results
 
@@ -37,7 +29,6 @@ We've thoroughly tested the converter with multiple ColBERT models:
 - **Speed**: 1.55x faster
 - **Size**: 569 MB → 143 MB (75% reduction)
 
-See [VALIDATION_REPORT.md](VALIDATION_REPORT.md) for detailed results.
 
 ## Usage
 
