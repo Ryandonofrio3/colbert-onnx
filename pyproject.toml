@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "colbert-onnx"
+version = "0.1.0"
+description = "Convert ColBERT models to ONNX format"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "transformers[torch]==4.49.0",
+    "onnxruntime==1.20.1",
+    "optimum@git+https://github.com/huggingface/optimum.git@b04feaea78cda58d79b8da67dca3fd0c4ab33435",
+    "onnx==1.17.0",
+    "tqdm==4.67.1",
+    "onnxslim==0.1.48",
+    "numpy<2.0",
+    "pylate>=1.0.0",
+    "scipy>=1.11.0",
+    "psutil>=5.9.0",
+]
+
+[project.scripts]
+convert = "colbert_onnx.convert:main"
+validate = "colbert_onnx.validate:main"
+
+[tool.hatch.metadata]
+allow-direct-references = true
