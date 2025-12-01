@@ -9,6 +9,7 @@ import time
 import os
 from typing import List, Tuple, Dict
 import json
+import tempfile
 
 import torch
 import numpy as np
@@ -123,6 +124,20 @@ def get_process_memory_mb() -> float:
     return process.memory_info().rss / (1024 * 1024)
 
 
+def get_model_disk_size_mb(model: torch.nn.Module) -> float:
+    """Persist state_dict to temp file to measure on-disk model size."""
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        tmp_path = tmp.name
+    try:
+        torch.save(model.state_dict(), tmp_path)
+        return os.path.getsize(tmp_path) / (1024 * 1024)
+    finally:
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+
+
 def compute_embedding_similarity(
     pytorch_embeddings: np.ndarray,
     onnx_embeddings: np.ndarray
@@ -175,8 +190,8 @@ def benchmark_pytorch_model(
     """
     print(f"\nBenchmarking PyTorch model ({num_runs} runs)...")
 
-    # Get model size (approximate)
-    model_size_mb = sum(p.numel() * p.element_size() for p in model.parameters()) / (1024 * 1024)
+    # Get model size (on-disk)
+    model_size_mb = get_model_disk_size_mb(model)
 
     # Tokenize with fixed length for fair comparison
     inputs = tokenizer(
@@ -208,15 +223,18 @@ def benchmark_pytorch_model(
 
     # Benchmark
     times = []
-    mem_before = get_process_memory_mb()
+    process = psutil.Process(os.getpid())
+    mem_before = process.memory_info().rss
+    peak_rss = mem_before
 
     for i in range(num_runs):
         start = time.time()
         with torch.no_grad():
             embeddings = forward_pytorch(inputs["input_ids"], inputs["attention_mask"])
         times.append(time.time() - start)
+        peak_rss = max(peak_rss, process.memory_info().rss)
 
-    mem_peak = get_process_memory_mb()
+    mem_peak_mb = (peak_rss - mem_before) / (1024 * 1024)
 
     # Get final embeddings for comparison
     with torch.no_grad():
@@ -231,7 +249,7 @@ def benchmark_pytorch_model(
         "std_time": np.std(times),
         "total_time": sum(times),
         "model_size_mb": model_size_mb,
-        "peak_memory_mb": mem_peak - mem_before,
+        "peak_memory_mb": mem_peak_mb,
     }
 
     print(f"  ✓ Average time: {metrics['avg_time']*1000:.2f} ms")
@@ -286,7 +304,9 @@ def benchmark_onnx_model(
 
     # Benchmark
     times = []
-    mem_before = get_process_memory_mb()
+    process = psutil.Process(os.getpid())
+    mem_before = process.memory_info().rss
+    peak_rss = mem_before
 
     for i in range(num_runs):
         start = time.time()
@@ -298,8 +318,9 @@ def benchmark_onnx_model(
             }
         )
         times.append(time.time() - start)
+        peak_rss = max(peak_rss, process.memory_info().rss)
 
-    mem_peak = get_process_memory_mb()
+    mem_peak_mb = (peak_rss - mem_before) / (1024 * 1024)
 
     # Get final embeddings
     final_outputs = session.run(
@@ -317,7 +338,7 @@ def benchmark_onnx_model(
         "std_time": np.std(times),
         "total_time": sum(times),
         "model_size_mb": model_size_mb,
-        "peak_memory_mb": mem_peak - mem_before,
+        "peak_memory_mb": mem_peak_mb,
     }
 
     print(f"  ✓ Average time: {metrics['avg_time']*1000:.2f} ms")

@@ -175,6 +175,7 @@ def export_to_onnx(
     model: torch.nn.Module,
     output_path: str,
     opset_version: int = 17,
+    device: str = "cpu",
     sequence_length: int = 128
 ) -> None:
     """
@@ -189,8 +190,9 @@ def export_to_onnx(
     print(f"\nExporting to ONNX: {output_path}")
 
     # Create dummy inputs
-    dummy_input_ids = torch.randint(0, 50000, (2, sequence_length), dtype=torch.long)
-    dummy_attention_mask = torch.ones((2, sequence_length), dtype=torch.long)
+    export_device = torch.device(device)
+    dummy_input_ids = torch.randint(0, 50000, (2, sequence_length), dtype=torch.long, device=export_device)
+    dummy_attention_mask = torch.ones((2, sequence_length), dtype=torch.long, device=export_device)
 
     # Test model before export
     print("Testing model before export...")
@@ -360,11 +362,12 @@ def main():
     print("="*60)
     onnx_model = ColBERTONNXWrapper(module_list)
     onnx_model.eval()
+    onnx_model.to(args.device)
 
     # Test wrapper
     print("\nTesting ONNX wrapper...")
-    dummy_input_ids = torch.randint(0, 50000, (2, 128), dtype=torch.long)
-    dummy_attention_mask = torch.ones((2, 128), dtype=torch.long)
+    dummy_input_ids = torch.randint(0, 50000, (2, 128), dtype=torch.long, device=args.device)
+    dummy_attention_mask = torch.ones((2, 128), dtype=torch.long, device=args.device)
 
     with torch.no_grad():
         test_output = onnx_model(dummy_input_ids, dummy_attention_mask)
@@ -382,7 +385,8 @@ def main():
     export_to_onnx(
         onnx_model,
         model_path,
-        opset_version=args.opset_version
+        opset_version=args.opset_version,
+        device=args.device
     )
 
     # Apply onnxslim
